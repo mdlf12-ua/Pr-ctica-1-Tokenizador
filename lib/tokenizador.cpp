@@ -41,6 +41,15 @@ Tokenizador& Tokenizador::operator= (const Tokenizador& t) {
 
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 
+    string delimiters = this->delimiters; // copia local
+    if (casosEspeciales) {
+        if (delimiters.find(' ')  == string::npos) delimiters += ' ';
+        if (delimiters.find('\n') == string::npos) delimiters += '\n';
+        if (delimiters.find('\r') == string::npos) delimiters += '\r';
+        if (delimiters.find('\t') == string::npos) delimiters += '\t';
+    }
+
+
     //añadir cosa para meter espacio a delimiters aquí
 
     string delimitersURL="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
@@ -116,6 +125,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
             if (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0) 
             {
                 string::size_type fin = txt.find_first_of(delimitersURL, lastPos);
+                if (fin == string::npos) fin = txt.size();
 
                 string url = txt.substr(lastPos, fin - lastPos);
                 tokens.push_back(url);
@@ -227,22 +237,14 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
                     else if(c == '.')
                     {
-                        // unsigned char prev = txt[i-1];
-                        // char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
-                        // if (delimiters.find(prev) == string::npos && prev != '.' &&
-                        //     next != '\0' && delimiters.find(next) == string::npos && next != '.'){
-                        //     i++;
-                        // }
-                        // else{ 
-                        //     break;
-                        // }
                         unsigned char prev = txt[i-1];
-                        if (delimiters.find(prev) == string::npos && prev != '.') {
+                        char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
+                        if (delimiters.find(prev) == string::npos && prev != '.' &&
+                            next != '\0' && delimiters.find(next) == string::npos && next != '.')
                             i++;
-                        } else { 
-                            break;
-                        }
+                        else break;
                     }
+                    
                     else//Carácter normal
                     {
                         i++;
@@ -271,8 +273,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                         if (next == '-' || next == '\0' || next == ' ' || delimiters.find(next) != string::npos) break;
                         i++;
                     }
-                    else if (delimiters.find(c) != string::npos) break;
-                    else i++;
+                    else if (delimiters.find(c) != string::npos) {break;}
+                    else {i++;}
                 }
 
                 if (i > lastPos)
