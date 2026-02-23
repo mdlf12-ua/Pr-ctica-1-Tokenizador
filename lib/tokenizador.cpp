@@ -222,7 +222,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 while(i<txt.size())
                 {
                     unsigned char c = txt[i];
-                    if (delimitersACRON.find(c) !=string::npos){
+                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || delimitersACRON.find(c) !=string::npos){
                         break;
                     }
                     else if(c == '.')
@@ -263,6 +263,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 while (i < txt.size())
                 {
                     unsigned char c = txt[i];
+                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') break;
                     if (c == '-')
                     {
                         char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
