@@ -5,7 +5,7 @@
 #include <fstream>
 #include "../include/tokenizador.h"
 #include <string>
-//#include <unistd.h>
+#include <unistd.h>
 using namespace std;
 
 Tokenizador::Tokenizador (const string& delimitadoresPalabra, const bool& kcasosEspeciales, const bool& minuscSinAcentos) {
@@ -122,7 +122,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 lastPos = txt.find_first_not_of(delimiters, fin);//Aquí debería usar delimiters o delimitersURL????
             }
             //DECIMALES
-            else if (esDelimPunto && esDelimComa && 
+            else if ((esDelimPunto || esDelimComa) && 
                 (isdigit(txt[lastPos]) || ((txt[lastPos]=='.' || txt[lastPos]==',') 
                 && lastPos+1<txt.length() && isdigit(txt[lastPos+1]))))
             {
@@ -215,25 +215,31 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
                 }
             }//ACRÓNIMOS
-            else if(esDelimPunto && esDelimArroba && (txt.find('.', lastPos) <= txt.find_first_of(delimitersACRON + " \t\n\r", lastPos)) &&  txt.find('.', lastPos) != lastPos && txt.find('.', lastPos) != string::npos)
+            else if(esDelimPunto && txt.find('.', lastPos) < txt.find_first_of(delimitersACRON + " \t\n\r", lastPos))
             {
                 string::size_type i = lastPos;
 
                 while(i<txt.size())
                 {
                     unsigned char c = txt[i];
-                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || delimitersACRON.find(c) !=string::npos){
+                    if (delimitersACRON.find(c) !=string::npos){
                         break;
                     }
                     else if(c == '.')
                     {
+                        // unsigned char prev = txt[i-1];
+                        // char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
+                        // if (delimiters.find(prev) == string::npos && prev != '.' &&
+                        //     next != '\0' && delimiters.find(next) == string::npos && next != '.'){
+                        //     i++;
+                        // }
+                        // else{ 
+                        //     break;
+                        // }
                         unsigned char prev = txt[i-1];
-                        char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
-                        if (delimiters.find(prev) == string::npos && prev != '.' &&
-                            next != '\0' && delimiters.find(next) == string::npos && next != '.'){
+                        if (delimiters.find(prev) == string::npos && prev != '.') {
                             i++;
-                        }
-                        else{ 
+                        } else { 
                             break;
                         }
                     }
@@ -257,7 +263,6 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 while (i < txt.size())
                 {
                     unsigned char c = txt[i];
-                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') break;
                     if (c == '-')
                     {
                         char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
@@ -303,40 +308,26 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 }
 
 string Tokenizador::Normalizar(const string& str) const {
-
     string resultado = str;
-
     for (size_t i = 0; i < resultado.length(); i++) {
-
         unsigned char c = resultado[i];
-
-        if (c >= 'A' && c <= 'Z') {
-            c = tolower(c);
-        }
-
-        if (c==193||c==192||c==194||c==196||c==225||c==224||c==226||c==228)
-            resultado[i]='a';
-
+        if (c >= 'A' && c <= 'Z')
+            resultado[i] = tolower(c);
+        else if (c==193||c==192||c==194||c==196||c==225||c==224||c==226||c==228)
+            resultado[i] = 'a';
         else if (c==201||c==200||c==202||c==203||c==233||c==232||c==234||c==235)
-            resultado[i]='e';
-
+            resultado[i] = 'e';
         else if (c==205||c==204||c==206||c==207||c==237||c==236||c==238||c==239)
-            resultado[i]='i';
-
+            resultado[i] = 'i';
         else if (c==211||c==210||c==212||c==214||c==243||c==242||c==244||c==246)
-            resultado[i]='o';
-
+            resultado[i] = 'o';
         else if (c==218||c==217||c==219||c==220||c==250||c==249||c==251||c==252)
-            resultado[i]='u';
-
-        else if (c==209)
-            resultado[i]=241; //Ñ->ñ
-
-        else
-            resultado[i]=c;
+            resultado[i] = 'u';
+        else if (c==209||c==241)
+            resultado[i] = 241; // Ñ->ñ
     }
+    return resultado;
 }
-
 bool Tokenizador::Tokenizar (const string& NomFichEntr, const string& NomFichSal) const {
     ifstream i;
     ofstream f;
@@ -410,21 +401,21 @@ bool Tokenizador::TokenizarListaFicheros(const string& i) const {
     ficheroLista.close();
     return todoCorrecto;
 }
-// bool Tokenizador::TokenizarDirectorio (const string& dirAIndexar) const {
-//     struct stat dir;
-//     // Compruebo la existencia del directorio
-//     int err=stat(dirAIndexar.c_str(), &dir);
-//     if(err==-1 || !S_ISDIR(dir.st_mode)){
-//         cerr << "ERROR: No existe el directorio: " << dirAIndexar << endl; // <--- OBLIGATORIO
-//         return false;
-//     }
-//     else {
-//         // Hago una lista en un fichero con find>fich
-//         string cmd="find "+dirAIndexar+" -follow |sort > .lista_fich";
-//         system(cmd.c_str());
-//         return TokenizarListaFicheros(".lista_fich");
-//     }
-// }
+bool Tokenizador::TokenizarDirectorio (const string& dirAIndexar) const {
+    struct stat dir;
+    // Compruebo la existencia del directorio
+    int err=stat(dirAIndexar.c_str(), &dir);
+    if(err==-1 || !S_ISDIR(dir.st_mode)){
+        cerr << "ERROR: No existe el directorio: " << dirAIndexar << endl; // <--- OBLIGATORIO
+        return false;
+    }
+    else {
+        // Hago una lista en un fichero con find>fich
+        string cmd="find "+dirAIndexar+" -follow |sort > .lista_fich";
+        system(cmd.c_str());
+        return TokenizarListaFicheros(".lista_fich");
+    }
+}
 
 void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters) {
     delimiters = "";
