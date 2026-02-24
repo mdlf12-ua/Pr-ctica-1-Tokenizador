@@ -125,11 +125,25 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
             if (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0) 
             {
                 string::size_type fin = txt.find_first_of(delimitersURL, lastPos);
-                if (fin == string::npos) fin = txt.size();
-
-                string url = txt.substr(lastPos, fin - lastPos);
-                tokens.push_back(url);
-                lastPos = txt.find_first_not_of(delimiters, fin);//Aquí debería usar delimiters o delimitersURL????
+                if (fin == string::npos) {fin = txt.size();}
+                if (txt[fin-1] !=':'){
+                    string url = txt.substr(lastPos, fin - lastPos);
+                    tokens.push_back(url);
+                    lastPos = txt.find_first_not_of(delimiters, fin);
+                }
+                else
+                {
+                    string::size_type pos = txt.find_first_of(delimiters, lastPos);
+                    tokens.push_back(txt.substr(lastPos, pos - lastPos));
+                
+                    // Avanzamos lastPos a la siguiente palabra
+                    if (pos == string::npos){
+                        lastPos = string::npos;
+                    }
+                    else{ 
+                        lastPos = txt.find_first_not_of(delimiters, pos);
+                    }
+                }
             }
             //DECIMALES
             else if ((esDelimPunto || esDelimComa) && 
@@ -137,36 +151,28 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 && lastPos+1<txt.length() && isdigit(txt[lastPos+1]))))
             {
                 string token="";
-                if(txt[lastPos] =='.' || txt[lastPos]==',')
-                {
-                    token="0";
-                }
-
                 string::size_type i = lastPos;
-                char prev = '\0';
-                bool esNumero = true;
+                if (lastPos > 0 &&
+                    (txt[lastPos-1]=='.' || txt[lastPos-1]==','))
+                {
+                    token += '0';
+                    token += txt[lastPos-1];  // añadir el separador
+                }
 
                 while(i<txt.size())
                 {
                     unsigned char c = txt[i];
-                    if(isdigit(c))
+                    if(isdigit(c) ||
+                        c=='.' || c==',' ||
+                        c=='/' ||
+                        isalpha(c) ||
+                        c=='+' || c=='-')
                     {
                         token+=c;
-                        prev=c;
-                        i++;
-                    }
-                    else if(c=='.' || c==',')
-                    {
-                        if (prev=='.' || prev==',') {//Doble separador
-                            break;
-                        }
-                        token += c;
-                        prev = c;
                         i++;
                     }
                     else
                     {
-                        esNumero = !token.empty();
                         break;
                     }
                 }
