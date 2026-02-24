@@ -150,6 +150,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 (isdigit(txt[lastPos]) || ((txt[lastPos]=='.' || txt[lastPos]==',') 
                 && lastPos+1<txt.length() && isdigit(txt[lastPos+1]))))
             {
+                bool esNumero = true;
                 string token="";
                 string::size_type i = lastPos;
                 if (lastPos > 0 &&
@@ -163,10 +164,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 {
                     unsigned char c = txt[i];
                     if(isdigit(c) ||
-                        c=='.' || c==',' ||
-                        c=='/' ||
-                        isalpha(c) ||
-                        c=='+' || c=='-')
+                            (c == '.' && esDelimPunto) ||
+                            (c == ',' && esDelimComa))
                     {
                         token+=c;
                         i++;
@@ -187,8 +186,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
             else if(esDelimArroba && (txt.find('@', lastPos) <= txt.find_first_of(delimiters + " \t\n\r", lastPos)) &&  txt.find('@', lastPos) != lastPos && txt.find('@', lastPos) != string::npos)
             {
                 string::size_type posArroba = txt.find('@', lastPos);
-                string::size_type i = posArroba + 1;
 
+                string::size_type i = posArroba + 1;
+                bool emailValido = true;
                 // REGLA: Debe contener algo después de la @ y que no sea delimitador ni espacio
                 bool tieneTextoDespues = (i < txt.size() && 
                     txt[i] != ' ' && txt[i] != '\t' && txt[i] != '\n' && txt[i] != '\r' && 
@@ -199,13 +199,20 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     while(i<txt.size())
                     {
                         unsigned char c = txt[i];
+
+                        if(c=='@')
+                        {
+                            emailValido=false;
+                            break;
+                        }
+
                         if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || delimitersEMAIL.find(c) !=string::npos){
                             break;
                         }
                         else if(c == '.' || c=='-' || c=='_')
                         {
                             unsigned char prev = txt[i-1];
-                                char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
+                            char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
                             if (delimiters.find(prev) == string::npos && prev != ' ' && prev != '.' && prev != '-' && prev != '_' &&
                                 next != '\0' && delimiters.find(next) == string::npos && next != ' '){
                                 i++;
@@ -221,12 +228,25 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 
 
                     }
-                    tokens.push_back(txt.substr(lastPos, i - lastPos));
-                    lastPos = txt.find_first_not_of(delimiters, i);//Más eficiente, replicar para el resto de casos
+                    if (emailValido) {
+                        tokens.push_back(txt.substr(lastPos, i - lastPos));
+                        lastPos = txt.find_first_not_of(delimiters + " \t\n\r", i);
+                    } else {
+                        // Segundo @ encontrado 
+                        if (posArroba > lastPos) {
+                            tokens.push_back(txt.substr(lastPos, posArroba - lastPos));
+                        }
+                        lastPos = posArroba + 1;
+                        continue;
+                    }
                 }
                 else{//Fake email como marcos@
                     if (posArroba > lastPos){
                         tokens.push_back(txt.substr(lastPos, posArroba - lastPos));
+                        lastPos = txt.find_first_not_of(delimiters, posArroba + 1);
+                    }
+                    else
+                    {//solo @, saltar
                         lastPos = txt.find_first_not_of(delimiters, posArroba + 1);
                     }
                 }
