@@ -1,40 +1,33 @@
-#include <iostream> 
+#include <iostream>
 #include <string>
-#include <list> 
-#include "tokenizador.h"
+#include <list>
+#include "../include/tokenizador.h" // Asegúrate de que la ruta sea correcta
 
 using namespace std;
 
-///////// Comprobación de que vacíe la lista resultado
+int main(void) {
+    // 1. Configuración del tokenizador
+    // Delimitadores por defecto (puedes cambiarlos según necesites)
+    string delimitadores = ",;:.-/+*\\ '\"{}[]()<>¡!¿?&#=\t@";
+    bool kCasosEspeciales = true;
+    bool kPasarAminusculas = false;
 
-void imprimirListaSTL(const list<string>& cadena)
-{
-        list<string>::const_iterator itCadena;
-        for(itCadena=cadena.begin();itCadena!=cadena.end();itCadena++)
-        {
-                cout << (*itCadena) << ", ";
-        }
-        cout << endl;
-}
+    // 2. Creación de la instancia
+    Tokenizador a(delimitadores, kCasosEspeciales, kPasarAminusculas);
 
-int
-main(void)
-{
-	bool kCasosEspeciales = true, kpasarAminusculas = false;
+    cout << "Configuración actual: " << a << endl;
+    cout << "Iniciando la tokenización del directorio 'corpus'..." << endl;
 
-	list<string> lt1, lt2;
+    // 3. Llamada al método que procesa el directorio
+    // Este método buscará todos los archivos dentro de "corpus",
+    // los ordenará y creará un archivo .tk por cada uno.
+    if (a.TokenizarDirectorio("corpus")) {
+        cout << "Proceso finalizado con éxito." << endl;
+        cout << "Se han generado los archivos .tk correspondientes en el directorio 'corpus'." << endl;
+    } else {
+        cerr << "Hubo un error al procesar el directorio o el directorio no existe." << endl;
+        return 1;
+    }
 
-Tokenizador a("", true, false); 
-list<string> tokens; 
-
-a.Tokenizar("http:", tokens);
-	imprimirListaSTL(tokens);
-
-a.Tokenizar("http:////ab/", tokens);
-	imprimirListaSTL(tokens);
-
-a.Tokenizar("http:////ab.", tokens);
-	imprimirListaSTL(tokens);
-
-
+    return 0;
 }

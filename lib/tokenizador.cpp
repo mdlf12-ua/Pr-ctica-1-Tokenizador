@@ -118,6 +118,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 
     if(casosEspeciales)
     {
+        bool esNumeroToken=true;
         while(string::npos != lastPos)
         {
 
@@ -144,44 +145,58 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                         lastPos = txt.find_first_not_of(delimiters, pos);
                     }
                 }
+                esNumeroToken = true;
             }
             //DECIMALES
-            else if ((esDelimPunto || esDelimComa) && 
+            else if (esNumeroToken && (esDelimPunto || esDelimComa) && 
                 (isdigit(txt[lastPos]) || ((txt[lastPos]=='.' || txt[lastPos]==',') 
                 && lastPos+1<txt.length() && isdigit(txt[lastPos+1]))))
             {
                 bool esNumero = true;
-                string token="";
                 string::size_type i = lastPos;
-                if (lastPos > 0 &&
-                    (txt[lastPos-1]=='.' || txt[lastPos-1]==','))
-                {
-                    token += '0';
-                    token += txt[lastPos-1];  // añadir el separador
-                }
+
 
                 while(i<txt.size())
                 {
                     unsigned char c = txt[i];
+
                     if(isdigit(c) ||
-                            (c == '.' && esDelimPunto) ||
-                            (c == ',' && esDelimComa))
+                            (((c == '.' && esDelimPunto) ||
+                            (c == ',' && esDelimComa)) && txt[i+1]!='.' && txt[i+1]!=','))
                     {
-                        token+=c;
                         i++;
+                    }
+                    else if(delimiters.find(c)!=string::npos && c!='-')
+                    {
+
+                        break;
                     }
                     else
                     {
+                        esNumero=false;
                         break;
                     }
                 }
-                while (!token.empty() && (token.back()=='.' || token.back()==',')){
+
+                if (esNumero){
+                    string token = txt.substr(lastPos, i - lastPos);
+                    if (txt[lastPos-1] == '.' || txt[lastPos-1] == ',')
+                    {
+                        token = "0" + std::string(1, txt[lastPos-1]) + token;
+                    }
+
+                    while (!token.empty() && (token.back()=='.' || token.back()==',')){
                     token.pop_back();
-                }
-                if (!token.empty()){
+                    }
+
                     tokens.push_back(token);
+                    lastPos = txt.find_first_not_of(delimiters, i);
                 }
-                lastPos = txt.find_first_not_of(delimiters, i);
+                else
+                {
+                    esNumeroToken = false;
+                    continue; 
+                }
             }//EMAILS
             else if(esDelimArroba && (txt.find('@', lastPos) <= txt.find_first_of(delimiters + " \t\n\r", lastPos)) &&  txt.find('@', lastPos) != lastPos && txt.find('@', lastPos) != string::npos)
             {
@@ -250,6 +265,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                         lastPos = txt.find_first_not_of(delimiters, posArroba + 1);
                     }
                 }
+                esNumeroToken = true;
             }//ACRÓNIMOS
             else if(esDelimPunto && txt.find('.', lastPos) < txt.find_first_of(delimitersACRON + " \t\n\r", lastPos))
             {
@@ -281,6 +297,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     tokens.push_back(txt.substr(lastPos, i - lastPos));
     
                 lastPos = (i >= txt.size()) ? string::npos : txt.find_first_not_of(delimiters, i);
+                esNumeroToken = true;
             }//GUIONES
             else if (esDelimGuion &&
                 txt.find('-', lastPos) < txt.find_first_of(delimitersGUION + " \t\n\r", lastPos) &&
@@ -307,6 +324,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     tokens.push_back(txt.substr(lastPos, i - lastPos));
 
                 lastPos = (i >= txt.size()) ? string::npos : txt.find_first_not_of(delimiters, i);
+
+                esNumeroToken = true;
             }
             else
             {//NO es ningun caso especial
@@ -320,6 +339,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 else{ 
                     lastPos = txt.find_first_not_of(delimiters, pos);
                 }
+
+                esNumeroToken = true;
             }
             }
             
@@ -337,24 +358,57 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 }
 
 string Tokenizador::Normalizar(const string& str) const {
-    string resultado = str;
-    for (size_t i = 0; i < resultado.length(); i++) {
-        unsigned char c = resultado[i];
-        if (c >= 'A' && c <= 'Z')
-            resultado[i] = tolower(c);
-        else if (c==193||c==192||c==194||c==196||c==225||c==224||c==226||c==228)
-            resultado[i] = 'a';
-        else if (c==201||c==200||c==202||c==203||c==233||c==232||c==234||c==235)
-            resultado[i] = 'e';
-        else if (c==205||c==204||c==206||c==207||c==237||c==236||c==238||c==239)
-            resultado[i] = 'i';
-        else if (c==211||c==210||c==212||c==214||c==243||c==242||c==244||c==246)
-            resultado[i] = 'o';
-        else if (c==218||c==217||c==219||c==220||c==250||c==249||c==251||c==252)
-            resultado[i] = 'u';
-        else if (c==209||c==241)
-            resultado[i] = 241; // Ñ->ñ
+    string resultado;
+
+    for (unsigned char c : str)
+    {
+        switch (c)
+        {
+            // A
+            case 192: case 193: case 194: case 195: case 196: case 197:
+            case 224: case 225: case 226: case 227: case 228: case 229:
+                resultado += 'a';
+                break;
+
+            // E
+            case 200: case 201: case 202: case 203:
+            case 232: case 233: case 234: case 235:
+                resultado += 'e';
+                break;
+
+            // I
+            case 204: case 205: case 206: case 207:
+            case 236: case 237: case 238: case 239:
+                resultado += 'i';
+                break;
+
+            // O
+            case 210: case 211: case 212: case 213: case 214:
+            case 242: case 243: case 244: case 245: case 246:
+                resultado += 'o';
+                break;
+
+            // U
+            case 217: case 218: case 219: case 220:
+            case 249: case 250: case 251: case 252:
+                resultado += 'u';
+                break;
+
+            // Ñ ñ
+            case 209: case 241:
+                resultado += 'n';
+                break;
+
+            // Ç ç
+            case 199: case 231:
+                resultado += 'c';
+                break;
+
+            default:
+                resultado += tolower(c);
+        }
     }
+
     return resultado;
 }
 bool Tokenizador::Tokenizar (const string& NomFichEntr, const string& NomFichSal) const {
@@ -406,23 +460,22 @@ bool Tokenizador::TokenizarListaFicheros(const string& i) const {
     ifstream ficheroLista;
     string nombreFicheroIndividual;
     bool todoCorrecto = true;
-
+    
     ficheroLista.open(i.c_str());
-
     if (!ficheroLista) {
-        cerr << "ERROR: No existe el archivo de lista: " << i << endl;
+        cerr << "ERROR: No existe el archivo: " << i << endl;
         return false;
     }
 
-    // Leemos cada línea del fichero i, que contiene un nombre de fichero a tokenizar
     while (getline(ficheroLista, nombreFicheroIndividual)) {
-        // El enunciado dice que no se debe interrumpir la ejecución si un archivo no existe,
-        // pero el valor de retorno final debe ser false si alguno falló.
         if (!nombreFicheroIndividual.empty()) {
-            // Llamamos a la versión de Tokenizar que añade .tk automáticamente
+            // Comprobar si es un directorio -> saltarlo
+            struct stat s;
+            if (stat(nombreFicheroIndividual.c_str(), &s) == 0 && S_ISDIR(s.st_mode)) {
+                continue; // es directorio, ignorar
+            }
             if (!Tokenizar(nombreFicheroIndividual)) {
-                todoCorrecto = false; 
-                // El error específico de cada fichero ya lo lanza el método Tokenizar(string) a cerr
+                todoCorrecto = false;
             }
         }
     }
@@ -439,6 +492,7 @@ bool Tokenizador::TokenizarDirectorio (const string& dirAIndexar) const {
         return false;
     }
     else {
+        cout<<"Directorio";
         // Hago una lista en un fichero con find>fich
         string cmd="find "+dirAIndexar+" -follow |sort > .lista_fich";
         system(cmd.c_str());
