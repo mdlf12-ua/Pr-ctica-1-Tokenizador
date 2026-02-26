@@ -412,36 +412,34 @@ string Tokenizador::Normalizar(const string& str) const {
     return resultado;
 }
 bool Tokenizador::Tokenizar (const string& NomFichEntr, const string& NomFichSal) const {
-    ifstream i;
-    ofstream f;
-    string cadena;
-    list<string> tokens;
-    tokens.clear();
-
-    i.open(NomFichEntr.c_str());
+ifstream i(NomFichEntr.c_str());
     if(!i) {
         cerr << "ERROR: No existe el archivo:" << NomFichEntr << endl;
         return false;
     }
-    else
-    {
-        while(!i.eof())
-        {
-            cadena="";
-            getline(i, cadena);
-            if(cadena.length()!=0)
-            {
-                Tokenizar(cadena, tokens);
+
+    ofstream f(NomFichSal.c_str());
+    if(!f) {
+        return false;
+    }
+
+    string cadena;
+    list<string> tokens;
+
+    while(getline(i, cadena)) {
+        if(!cadena.empty()) {
+            // OPCIÓN A: Quitar el tokens.clear() de tu otra función Tokenizar
+            // OPCIÓN B: Limpiar aquí y escribir inmediatamente (Más seguro)
+            tokens.clear(); 
+            Tokenizar(cadena, tokens); 
+            
+            for(const string& t : tokens) {
+                f << t << "\n";
             }
         }
     }
+
     i.close();
-    f.open(NomFichSal.c_str());
-    list<string>::iterator itS;
-    for(itS= tokens.begin();itS!= tokens.end();itS++)
-    {
-        f << (*itS) << endl;
-    }
     f.close();
     return true;
 }
