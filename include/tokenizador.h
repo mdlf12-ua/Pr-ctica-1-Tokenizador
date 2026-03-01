@@ -71,4 +71,16 @@ private:
 
     bool pasarAminuscSinAcentos;
     // Si true pasará el token a minúsculas y quitará acentos, antes de realizar la tokenización
+
+    string delimitersURL;
+    string delimitersNUM;
+    string delimitersEMAIL;
+    string delimitersACRON;
+    string delimitersGUION;
+    bool esDelimPunto;
+    bool esDelimComa;
+    bool esDelimArroba;
+    bool esDelimGuion;
+
+    void ActualizarDelimitadoresEspeciales();
 };

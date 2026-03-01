@@ -8,22 +8,26 @@
 #include <unistd.h>
 using namespace std;
 
+
 Tokenizador::Tokenizador (const string& delimitadoresPalabra, const bool& kcasosEspeciales, const bool& minuscSinAcentos) {
     DelimitadoresPalabra(delimitadoresPalabra);
     casosEspeciales = kcasosEspeciales;
     pasarAminuscSinAcentos = minuscSinAcentos;
+    ActualizarDelimitadoresEspeciales();
 }
 
 Tokenizador::Tokenizador (const Tokenizador& t) {
     delimiters = t.delimiters;
     casosEspeciales = t.casosEspeciales;
     pasarAminuscSinAcentos = t.pasarAminuscSinAcentos;
+    ActualizarDelimitadoresEspeciales();
 }
 
 Tokenizador::Tokenizador () {
     delimiters = ",;:.-/+*\\ '\"{}[]()<>¡!¿?&#=\t@";
     casosEspeciales = true;
     pasarAminuscSinAcentos = false;
+    ActualizarDelimitadoresEspeciales();
 }
 
 Tokenizador::~Tokenizador () {
@@ -35,8 +39,35 @@ Tokenizador& Tokenizador::operator= (const Tokenizador& t) {
         delimiters = t.delimiters;
         casosEspeciales = t.casosEspeciales;
         pasarAminuscSinAcentos = t.pasarAminuscSinAcentos;
+        ActualizarDelimitadoresEspeciales();
     }
     return *this;
+}
+
+void Tokenizador::ActualizarDelimitadoresEspeciales() {
+
+    const string excepcionesURL   = "_:/.?&-=#@";
+    const string excepcionesNUM   = ".,";
+    const string excepcionesEMAIL = ".-_";
+    const string excepcionesACRON = ".";
+    const string excepcionesGUION = "-";
+
+    delimitersURL.clear();   delimitersNUM.clear();
+    delimitersEMAIL.clear(); delimitersACRON.clear();
+    delimitersGUION.clear();
+
+    for (char c : delimiters) {
+        if (excepcionesURL.find(c)   == string::npos) delimitersURL   += c;
+        if (excepcionesNUM.find(c)   == string::npos) delimitersNUM   += c;
+        if (excepcionesEMAIL.find(c) == string::npos) delimitersEMAIL += c;
+        if (excepcionesACRON.find(c) == string::npos) delimitersACRON += c;
+        if (excepcionesGUION.find(c) == string::npos) delimitersGUION += c;
+    }
+
+    esDelimPunto  = (delimiters.find('.')  != string::npos);
+    esDelimComa   = (delimiters.find(',')  != string::npos);
+    esDelimArroba = (delimiters.find('@')  != string::npos);
+    esDelimGuion  = (delimiters.find('-')  != string::npos);
 }
 
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
@@ -48,59 +79,6 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
         if (delimiters.find('\r') == string::npos) delimiters += '\r';
         if (delimiters.find('\t') == string::npos) delimiters += '\t';
     }
-
-
-    //añadir cosa para meter espacio a delimiters aquí
-
-    string delimitersURL="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
-    string excepcionesURL="_:/.?&-=#@";
-    for (char c : delimiters) {
-
-        if (excepcionesURL.find(c) == string::npos) {
-            delimitersURL += c;
-        }
-    }
-    string delimitersNUM="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
-    string excepcionesNUM=".,";
-    for (char c : delimiters) {
-
-        if (excepcionesNUM.find(c) == string::npos) {
-            delimitersNUM += c;
-        }
-    }
-
-    string delimitersEMAIL="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
-    string excepcionesEMAIL=".-_";
-    for (char c : delimiters) {
-
-        if (excepcionesEMAIL.find(c) == string::npos) {
-            delimitersEMAIL += c;
-        }
-    }
-
-    string delimitersACRON="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
-    string excepcionesACRON=".";
-    for (char c : delimiters) {
-
-        if (excepcionesACRON.find(c) == string::npos) {
-            delimitersACRON += c;
-        }
-    }
-
-    string delimitersGUION="";//Esto lo tendré que hacer para que se haga sólo una vez y no con cada instania de Tokenizar
-    string excepcionesGUION="-";
-    for (char c : delimiters) {
-
-        if (excepcionesGUION.find(c) == string::npos) {
-            delimitersGUION += c;
-        }
-    }
-
-    bool esDelimPunto = (delimiters.find('.') != string::npos);
-    bool esDelimComa  = (delimiters.find(',') != string::npos);
-    bool esDelimArroba = (delimiters.find('@') != string::npos);
-    bool esDelimGuion = (delimiters.find('-') != string::npos);
-
 
 
     tokens.clear();
@@ -359,6 +337,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 
 string Tokenizador::Normalizar(const string& str) const {
     string resultado;
+    resultado.reserve(str.size());
 
     for (unsigned char c : str)
     {
@@ -412,35 +391,39 @@ string Tokenizador::Normalizar(const string& str) const {
     return resultado;
 }
 bool Tokenizador::Tokenizar (const string& NomFichEntr, const string& NomFichSal) const {
-ifstream i(NomFichEntr.c_str());
-    if(!i) {
-        cerr << "ERROR: No existe el archivo:" << NomFichEntr << endl;
+    ifstream i(NomFichEntr, ios::binary | ios::ate);
+    if (!i) {
+        cerr << "ERROR: No existe el archivo: " << NomFichEntr << endl;
         return false;
     }
 
-    ofstream f(NomFichSal.c_str());
-    if(!f) {
+    // Leer fichero entero de golpe
+    streamsize tam = i.tellg();
+    i.seekg(0, ios::beg);
+    string contenido(tam, '\0');
+    if (!i.read(&contenido[0], tam)) {
         return false;
     }
-
-    string cadena;
-    list<string> tokens;
-
-    while(getline(i, cadena)) {
-        if(!cadena.empty()) {
-            // OPCIÓN A: Quitar el tokens.clear() de tu otra función Tokenizar
-            // OPCIÓN B: Limpiar aquí y escribir inmediatamente (Más seguro)
-            tokens.clear(); 
-            Tokenizar(cadena, tokens); 
-            
-            for(const string& t : tokens) {
-                f << t << "\n";
-            }
-        }
-    }
-
     i.close();
-    f.close();
+
+    // Tokenizar en una sola pasada
+    list<string> tokens;
+    Tokenizar(contenido, tokens);
+
+    // Construir salida en memoria y escribir de golpe
+    ofstream f(NomFichSal, ios::binary);
+    if (!f) {
+        return false;
+    }
+
+    string salida;
+    salida.reserve(tam); // estimación razonable del tamaño
+    for (const string& t : tokens) {
+        salida += t;
+        salida += '\n';
+    }
+    f.write(salida.data(), salida.size());
+
     return true;
 }
 
@@ -505,6 +488,7 @@ void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters) {
             delimiters += c;
         }
     }
+    ActualizarDelimitadoresEspeciales();
 }
 
 void Tokenizador::AnyadirDelimitadoresPalabra(const string& nuevoDelimiters) {
@@ -513,6 +497,7 @@ void Tokenizador::AnyadirDelimitadoresPalabra(const string& nuevoDelimiters) {
             delimiters += c;
         }
     }
+    ActualizarDelimitadoresEspeciales();
 }
 
 string Tokenizador::DelimitadoresPalabra() const
@@ -523,6 +508,7 @@ string Tokenizador::DelimitadoresPalabra() const
 void Tokenizador::CasosEspeciales(const bool& nuevoCasosEspeciales)
 {
     casosEspeciales=nuevoCasosEspeciales;
+    ActualizarDelimitadoresEspeciales();
 }
 
 bool Tokenizador::CasosEspeciales()

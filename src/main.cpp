@@ -1,33 +1,39 @@
-#include <iostream>
+#include <iostream> 
 #include <string>
-#include <list>
-#include "../include/tokenizador.h" // Asegúrate de que la ruta sea correcta
+#include <list> 
+#include "tokenizador.h"
 
 using namespace std;
 
-int main(void) {
-    // 1. Configuración del tokenizador
-    // Delimitadores por defecto (puedes cambiarlos según necesites)
-    string delimitadores = ",;:.-/+*\\ '\"{}[]()<>¡!¿?&#=\t@";
-    bool kCasosEspeciales = true;
-    bool kPasarAminusculas = false;
+///////// Comprobación de que vacíe la lista resultado
 
-    // 2. Creación de la instancia
-    Tokenizador a(delimitadores, kCasosEspeciales, kPasarAminusculas);
+void imprimirListaSTL(const list<string>& cadena)
+{
+        list<string>::const_iterator itCadena;
+        for(itCadena=cadena.begin();itCadena!=cadena.end();itCadena++)
+        {
+                cout << (*itCadena) << ", ";
+        }
+        cout << endl;
+}
 
-    cout << "Configuración actual: " << a << endl;
-    cout << "Iniciando la tokenización del directorio 'corpus'..." << endl;
+int
+main(void)
+{
+	bool kCasosEspeciales = true, kpasarAminusculas = false;
 
-    // 3. Llamada al método que procesa el directorio
-    // Este método buscará todos los archivos dentro de "corpus",
-    // los ordenará y creará un archivo .tk por cada uno.
-    if (a.TokenizarDirectorio("corpus")) {
-        cout << "Proceso finalizado con éxito." << endl;
-        cout << "Se han generado los archivos .tk correspondientes en el directorio 'corpus'." << endl;
-    } else {
-        cerr << "Hubo un error al procesar el directorio o el directorio no existe." << endl;
-        return 1;
-    }
+	list<string> lt1, lt2;
 
-    return 0;
+Tokenizador a("@.&", true, false); 
+list<string> tokens; 
+
+a.Tokenizar("U..S.A p1 e..g. p2. La", lt1);
+imprimirListaSTL(lt1);
+
+a.Tokenizar("...U.S.A p1 e..g. p2. La", lt1);
+imprimirListaSTL(lt1);
+
+a.Tokenizar("Hack.4.Good p1 ", lt1);
+imprimirListaSTL(lt1);
+
 }
