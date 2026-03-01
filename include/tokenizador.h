@@ -81,6 +81,13 @@ private:
     bool esDelimComa;
     bool esDelimArroba;
     bool esDelimGuion;
+    bool tablaDelim[256];
+    bool tablaDelimURL[256];
+    bool tablaDelimNUM[256];
+    bool tablaDelimEMAIL[256];
+    bool tablaDelimACRON[256];
+    bool tablaDelimGUION[256];
+    unsigned char tablaNorm[256];
 
     void ActualizarDelimitadoresEspeciales();
 };

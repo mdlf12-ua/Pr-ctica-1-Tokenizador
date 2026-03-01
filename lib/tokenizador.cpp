@@ -68,6 +68,32 @@ void Tokenizador::ActualizarDelimitadoresEspeciales() {
     esDelimComa   = (delimiters.find(',')  != string::npos);
     esDelimArroba = (delimiters.find('@')  != string::npos);
     esDelimGuion  = (delimiters.find('-')  != string::npos);
+
+        // Tabla de normalización: índice=char ISO-8859-1, valor=char normalizado
+    // Inicializar con tolower para todos
+    for (int i = 0; i < 256; i++)
+        tablaNorm[i] = (unsigned char)tolower((unsigned char)i);
+
+    // Sobreescribir los acentuados
+    // A
+    for (unsigned char c : {192,193,194,195,196,197,224,225,226,227,228,229})
+        tablaNorm[c] = 'a';
+    // E
+    for (unsigned char c : {200,201,202,203,232,233,234,235})
+        tablaNorm[c] = 'e';
+    // I
+    for (unsigned char c : {204,205,206,207,236,237,238,239})
+        tablaNorm[c] = 'i';
+    // O
+    for (unsigned char c : {210,211,212,213,214,242,243,244,245,246})
+        tablaNorm[c] = 'o';
+    // U
+    for (unsigned char c : {217,218,219,220,249,250,251,252})
+        tablaNorm[c] = 'u';
+    // Ñ ñ
+    tablaNorm[209] = tablaNorm[241] = 'n';
+    // Ç ç
+    tablaNorm[199] = tablaNorm[231] = 'c';
 }
 
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
@@ -89,8 +115,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
         txt = Normalizar(txt);
     }
 
-    //string delimiters = delimiters + "\n\r"; esto está fatal
-    //if (casosEspeciales && delimiters.find(' ') == string::npos) delimiters += ' ';
+
 
     string::size_type lastPos = txt.find_first_not_of(delimiters,0);
 
@@ -176,15 +201,14 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     continue; 
                 }
             }//EMAILS
-            else if(esDelimArroba && (txt.find('@', lastPos) <= txt.find_first_of(delimiters + " \t\n\r", lastPos)) &&  txt.find('@', lastPos) != lastPos && txt.find('@', lastPos) != string::npos)
+            else if(esDelimArroba && (txt.find('@', lastPos) <= txt.find_first_of(delimiters , lastPos)) &&  txt.find('@', lastPos) != lastPos && txt.find('@', lastPos) != string::npos)
             {
                 string::size_type posArroba = txt.find('@', lastPos);
 
                 string::size_type i = posArroba + 1;
                 bool emailValido = true;
                 // REGLA: Debe contener algo después de la @ y que no sea delimitador ni espacio
-                bool tieneTextoDespues = (i < txt.size() && 
-                    txt[i] != ' ' && txt[i] != '\t' && txt[i] != '\n' && txt[i] != '\r' && 
+                bool tieneTextoDespues = (i < txt.size()  && 
                     delimiters.find(txt[i]) == string::npos);
 
                 if(tieneTextoDespues)
@@ -223,7 +247,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
                     if (emailValido) {
                         tokens.push_back(txt.substr(lastPos, i - lastPos));
-                        lastPos = txt.find_first_not_of(delimiters + " \t\n\r", i);
+                        lastPos = txt.find_first_not_of(delimiters, i);
                     } else {
                         // Segundo @ encontrado 
                         if (posArroba > lastPos) {
@@ -336,58 +360,11 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 }
 
 string Tokenizador::Normalizar(const string& str) const {
-    string resultado;
-    resultado.reserve(str.size());
-
-    for (unsigned char c : str)
-    {
-        switch (c)
-        {
-            // A
-            case 192: case 193: case 194: case 195: case 196: case 197:
-            case 224: case 225: case 226: case 227: case 228: case 229:
-                resultado += 'a';
-                break;
-
-            // E
-            case 200: case 201: case 202: case 203:
-            case 232: case 233: case 234: case 235:
-                resultado += 'e';
-                break;
-
-            // I
-            case 204: case 205: case 206: case 207:
-            case 236: case 237: case 238: case 239:
-                resultado += 'i';
-                break;
-
-            // O
-            case 210: case 211: case 212: case 213: case 214:
-            case 242: case 243: case 244: case 245: case 246:
-                resultado += 'o';
-                break;
-
-            // U
-            case 217: case 218: case 219: case 220:
-            case 249: case 250: case 251: case 252:
-                resultado += 'u';
-                break;
-
-            // Ñ ñ
-            case 209: case 241:
-                resultado += 'n';
-                break;
-
-            // Ç ç
-            case 199: case 231:
-                resultado += 'c';
-                break;
-
-            default:
-                resultado += tolower(c);
-        }
-    }
-
+    string resultado(str.size(), '\0');
+    const unsigned char* src = reinterpret_cast<const unsigned char*>(str.data());
+    unsigned char* dst = reinterpret_cast<unsigned char*>(&resultado[0]);
+    for (size_t i = 0; i < str.size(); i++)
+        dst[i] = tablaNorm[src[i]];
     return resultado;
 }
 bool Tokenizador::Tokenizar (const string& NomFichEntr, const string& NomFichSal) const {
