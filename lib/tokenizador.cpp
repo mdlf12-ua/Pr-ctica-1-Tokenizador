@@ -6,6 +6,7 @@
 #include "../include/tokenizador.h"
 #include <string>
 #include <unistd.h>
+#include <cstring>
 using namespace std;
 
 
@@ -124,6 +125,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
         bool esNumeroToken=true;
         while(string::npos != lastPos)
         {
+            size_t posArroba = esDelimArroba ? txt.find('@', lastPos) : string::npos;
+            size_t posGuion  = esDelimGuion  ? txt.find('-', lastPos) : string::npos;
+
 
             //URLs
             if (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0) 
@@ -201,9 +205,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     continue; 
                 }
             }//EMAILS
-            else if(esDelimArroba && (txt.find('@', lastPos) <= txt.find_first_of(delimiters , lastPos)) &&  txt.find('@', lastPos) != lastPos && txt.find('@', lastPos) != string::npos)
+            else if(esDelimArroba && posArroba <= txt.find_first_of(delimiters , lastPos) &&  posArroba != lastPos && posArroba != string::npos)
             {
-                string::size_type posArroba = txt.find('@', lastPos);
 
                 string::size_type i = posArroba + 1;
                 bool emailValido = true;
@@ -302,8 +305,8 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 esNumeroToken = true;
             }//GUIONES
             else if (esDelimGuion &&
-                txt.find('-', lastPos) < txt.find_first_of(delimitersGUION + " \t\n\r", lastPos) &&
-                txt.find('-', lastPos) != lastPos && txt.find('-', lastPos) != string::npos)
+                posGuion < txt.find_first_of(delimitersGUION + " \t\n\r", lastPos) &&
+                posGuion != lastPos && posGuion != string::npos)
             {
                 string::size_type i = lastPos;
 
