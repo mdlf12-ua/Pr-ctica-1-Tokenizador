@@ -95,6 +95,21 @@ void Tokenizador::ActualizarDelimitadoresEspeciales() {
     tablaNorm[209] = tablaNorm[241] = 'n';
     // Ç ç
     tablaNorm[199] = tablaNorm[231] = 'c';
+
+
+    memset(tablaDelim,      false, 256);
+    memset(tablaDelimURL,   false, 256);
+    memset(tablaDelimNUM,   false, 256);
+    memset(tablaDelimEMAIL, false, 256);
+    memset(tablaDelimACRON, false, 256);
+    memset(tablaDelimGUION, false, 256);
+
+    for (unsigned char c : delimiters)      tablaDelim[c]      = true;
+    for (unsigned char c : delimitersURL)   tablaDelimURL[c]   = true;
+    for (unsigned char c : delimitersNUM)   tablaDelimNUM[c]   = true;
+    for (unsigned char c : delimitersEMAIL) tablaDelimEMAIL[c] = true;
+    for (unsigned char c : delimitersACRON) tablaDelimACRON[c] = true;
+    for (unsigned char c : delimitersGUION) tablaDelimGUION[c] = true;
 }
 
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
@@ -107,6 +122,10 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
         if (delimiters.find('\t') == string::npos) delimiters += '\t';
     }
 
+    bool tablaDelimLocal[256];
+    memset(tablaDelimLocal, false, 256);
+    for (unsigned char c : delimiters) tablaDelimLocal[c] = true;
+
 
     tokens.clear();
 
@@ -118,30 +137,53 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
 
 
 
-    string::size_type lastPos = txt.find_first_not_of(delimiters,0);
+    string::size_type lastPos = 0;
+    while (lastPos < txt.size() && tablaDelimLocal[(unsigned char)txt[lastPos]]) ++lastPos;
+    if (lastPos == txt.size()) lastPos = string::npos;
 
     if(casosEspeciales)
     {
         bool esNumeroToken=true;
+        bool esEmailToken=true;
         while(string::npos != lastPos)
         {
             size_t posArroba = esDelimArroba ? txt.find('@', lastPos) : string::npos;
             size_t posGuion  = esDelimGuion  ? txt.find('-', lastPos) : string::npos;
 
+            size_t primerDelim = lastPos;
+            while (primerDelim < txt.size() && !tablaDelimLocal[(unsigned char)txt[primerDelim]]) ++primerDelim;
+
+            size_t primerDelimACRON = lastPos;
+            while (primerDelimACRON < txt.size()
+                && !tablaDelimACRON[(unsigned char)txt[primerDelimACRON]]
+                && txt[primerDelimACRON] != ' '  && txt[primerDelimACRON] != '\t'
+                && txt[primerDelimACRON] != '\n' && txt[primerDelimACRON] != '\r') ++primerDelimACRON;
+
+            size_t primerDelimGUION = lastPos;
+            while (primerDelimGUION < txt.size()
+                && !tablaDelimGUION[(unsigned char)txt[primerDelimGUION]]
+                && txt[primerDelimGUION] != ' '  && txt[primerDelimGUION] != '\t'
+                && txt[primerDelimGUION] != '\n' && txt[primerDelimGUION] != '\r') ++primerDelimGUION;
+
 
             //URLs
             if (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0) 
             {
-                string::size_type fin = txt.find_first_of(delimitersURL, lastPos);
+                string::size_type fin = lastPos;
+                while (fin < txt.size() && !tablaDelimURL[(unsigned char)txt[fin]]) ++fin;
+                
                 if (fin == string::npos) {fin = txt.size();}
                 if (txt[fin-1] !=':'){
                     string url = txt.substr(lastPos, fin - lastPos);
                     tokens.push_back(url);
-                    lastPos = txt.find_first_not_of(delimiters, fin);
+                    size_t p = fin;
+                    while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                    lastPos = (p < txt.size()) ? p : string::npos;
                 }
                 else
                 {
-                    string::size_type pos = txt.find_first_of(delimiters, lastPos);
+                    string::size_type pos = lastPos;
+                    while (pos < txt.size() && !tablaDelimLocal[(unsigned char)txt[pos]]) ++pos;
                     tokens.push_back(txt.substr(lastPos, pos - lastPos));
                 
                     // Avanzamos lastPos a la siguiente palabra
@@ -149,7 +191,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                         lastPos = string::npos;
                     }
                     else{ 
-                        lastPos = txt.find_first_not_of(delimiters, pos);
+                        size_t p = pos;
+                        while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                        lastPos = (p < txt.size()) ? p : string::npos;
                     }
                 }
                 esNumeroToken = true;
@@ -173,7 +217,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     {
                         i++;
                     }
-                    else if(delimiters.find(c)!=string::npos && c!='-')
+                    else if(tablaDelimLocal[(unsigned char)c] && c!='-')
                     {
 
                         break;
@@ -197,7 +241,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
 
                     tokens.push_back(token);
-                    lastPos = txt.find_first_not_of(delimiters, i);
+                    size_t p = i;
+                    while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                    lastPos = (p < txt.size()) ? p : string::npos;
                 }
                 else
                 {
@@ -205,14 +251,14 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     continue; 
                 }
             }//EMAILS
-            else if(esDelimArroba && posArroba <= txt.find_first_of(delimiters , lastPos) &&  posArroba != lastPos && posArroba != string::npos)
+            else if(esDelimArroba && posArroba <= primerDelim  &&  posArroba != lastPos && posArroba != string::npos)
             {
 
                 string::size_type i = posArroba + 1;
                 bool emailValido = true;
                 // REGLA: Debe contener algo después de la @ y que no sea delimitador ni espacio
                 bool tieneTextoDespues = (i < txt.size()  && 
-                    delimiters.find(txt[i]) == string::npos);
+                    !tablaDelimLocal[(unsigned char)txt[i]]);
 
                 if(tieneTextoDespues)
                 {
@@ -226,15 +272,15 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                             break;
                         }
 
-                        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || delimitersEMAIL.find(c) !=string::npos){
+                        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || tablaDelimEMAIL[(unsigned char)c]){
                             break;
                         }
                         else if(c == '.' || c=='-' || c=='_')
                         {
                             unsigned char prev = txt[i-1];
                             char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
-                            if (delimiters.find(prev) == string::npos && prev != ' ' && prev != '.' && prev != '-' && prev != '_' &&
-                                next != '\0' && delimiters.find(next) == string::npos && next != ' '){
+                            if (!tablaDelimLocal[(unsigned char)prev] && prev != ' ' && prev != '.' && prev != '-' && prev != '_' &&
+                                next != '\0' && !tablaDelimLocal[(unsigned char)next] && next != ' '){
                                 i++;
                             }
                             else{ 
@@ -250,7 +296,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
                     if (emailValido) {
                         tokens.push_back(txt.substr(lastPos, i - lastPos));
-                        lastPos = txt.find_first_not_of(delimiters, i);
+                        size_t p = i;
+                        while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                        lastPos = (p < txt.size()) ? p : string::npos;
                     } else {
                         // Segundo @ encontrado 
                         if (posArroba > lastPos) {
@@ -263,31 +311,36 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 else{//Fake email como marcos@
                     if (posArroba > lastPos){
                         tokens.push_back(txt.substr(lastPos, posArroba - lastPos));
-                        lastPos = txt.find_first_not_of(delimiters, posArroba + 1);
+                        size_t p = posArroba+1;
+                        while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                        lastPos = (p < txt.size()) ? p : string::npos;
                     }
                     else
                     {//solo @, saltar
-                        lastPos = txt.find_first_not_of(delimiters, posArroba + 1);
+                        size_t p = posArroba+1;
+                        while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                        lastPos = (p < txt.size()) ? p : string::npos;
+
                     }
                 }
                 esNumeroToken = true;
             }//ACRÓNIMOS
-            else if(esDelimPunto && txt.find('.', lastPos) < txt.find_first_of(delimitersACRON + " \t\n\r", lastPos))
+            else if(esDelimPunto && txt.find('.', lastPos) < primerDelimACRON)
             {
                 string::size_type i = lastPos;
 
                 while(i<txt.size())
                 {
                     unsigned char c = txt[i];
-                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || delimitersACRON.find(c) !=string::npos){
+                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || tablaDelimACRON[(unsigned char)c]){
                         break;
                     }
                     else if(c == '.')
                     {
                         unsigned char prev = txt[i-1];
                         char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
-                        if (delimiters.find(prev) == string::npos && prev != '.' &&
-                            next != '\0' && delimiters.find(next) == string::npos && next != '.')
+                        if (!tablaDelimLocal[(unsigned char)prev] && prev != '.' &&
+                            next != '\0' && !tablaDelimLocal[(unsigned char)next] && next != '.')
                             i++;
                         else break;
                     }
@@ -300,12 +353,16 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 }
                 if (i > lastPos)
                     tokens.push_back(txt.substr(lastPos, i - lastPos));
-    
-                lastPos = (i >= txt.size()) ? string::npos : txt.find_first_not_of(delimiters, i);
-                esNumeroToken = true;
+                    if (i >= txt.size()) {
+                        lastPos = string::npos;
+                    } else {
+                        while (i < txt.size() && tablaDelimLocal[(unsigned char)txt[i]]) ++i;
+                        lastPos = (i < txt.size()) ? i : string::npos;
+                    }
+                    esNumeroToken = true;
             }//GUIONES
             else if (esDelimGuion &&
-                posGuion < txt.find_first_of(delimitersGUION + " \t\n\r", lastPos) &&
+                posGuion < primerDelimGUION  &&
                 posGuion != lastPos && posGuion != string::npos)
             {
                 string::size_type i = lastPos;
@@ -318,23 +375,28 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     {
                         char next = (i + 1 < txt.size()) ? txt[i+1] : '\0';
                         // Dos guiones seguidos o guion al final: cortar antes
-                        if (next == '-' || next == '\0' || next == ' ' || delimiters.find(next) != string::npos) break;
+                        if (next == '-' || next == '\0' || next == ' ' || tablaDelimLocal[(unsigned char)next]) break;
                         i++;
                     }
-                    else if (delimiters.find(c) != string::npos) {break;}
+                    else if (tablaDelimLocal[(unsigned char)c]) {break;}
                     else {i++;}
                 }
 
                 if (i > lastPos)
                     tokens.push_back(txt.substr(lastPos, i - lastPos));
 
-                lastPos = (i >= txt.size()) ? string::npos : txt.find_first_not_of(delimiters, i);
-
+                if (i >= txt.size()) {
+                    lastPos = string::npos;
+                } else {
+                    while (i < txt.size() && tablaDelimLocal[(unsigned char)txt[i]]) ++i;
+                    lastPos = (i < txt.size()) ? i : string::npos;
+                }
                 esNumeroToken = true;
             }
             else
             {//NO es ningun caso especial
-                string::size_type pos = txt.find_first_of(delimiters, lastPos);
+                string::size_type pos = lastPos;
+                while (pos < txt.size() && !tablaDelimLocal[(unsigned char)txt[pos]]) ++pos;
                 tokens.push_back(txt.substr(lastPos, pos - lastPos));
                 
                 // Avanzamos lastPos a la siguiente palabra
@@ -342,7 +404,9 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     lastPos = string::npos;
                 }
                 else{ 
-                    lastPos = txt.find_first_not_of(delimiters, pos);
+                    size_t p = pos;
+                    while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+                    lastPos = (p < txt.size()) ? p : string::npos;
                 }
 
                 esNumeroToken = true;
@@ -352,12 +416,16 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
     }
     else
     {
-        string::size_type pos = txt.find_first_of(delimiters,lastPos);
+        string::size_type pos = lastPos;
+        while (pos < txt.size() && !tablaDelimLocal[(unsigned char)txt[pos]]) ++pos;
 
         while(string::npos != lastPos){
             tokens.push_back(txt.substr(lastPos, pos - lastPos));
-            lastPos = txt.find_first_not_of(delimiters, pos);
-            pos = txt.find_first_of(delimiters, lastPos);
+            size_t p = pos;
+            while (p < txt.size() && tablaDelimLocal[(unsigned char)txt[p]]) ++p;
+            lastPos = (p < txt.size()) ? p : string::npos;
+        pos = lastPos;
+        while (pos < txt.size() && !tablaDelimLocal[(unsigned char)txt[pos]]) ++pos;
         }
     }
 }
