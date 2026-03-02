@@ -145,29 +145,47 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
     {
         bool esNumeroToken=true;
         bool esEmailToken=true;
+        bool esGuionToken=true;
+        bool esAcronimoToken=true;
+        size_t posGuion=0;
+        size_t posArroba=0;
         while(string::npos != lastPos)
         {
-            size_t posArroba = esDelimArroba ? txt.find('@', lastPos) : string::npos;
-            size_t posGuion  = esDelimGuion  ? txt.find('-', lastPos) : string::npos;
 
             size_t primerDelim = lastPos;
             while (primerDelim < txt.size() && !tablaDelimLocal[(unsigned char)txt[primerDelim]]) ++primerDelim;
 
+            if (esDelimArroba) {
+                esEmailToken = (primerDelim < txt.size() && txt[primerDelim] == '@');
+                if (esEmailToken) posArroba = primerDelim;
+            }
+            if (esDelimGuion) {
+                esGuionToken = (primerDelim < txt.size() && txt[primerDelim] == '-');
+                if (esGuionToken) posGuion = primerDelim;
+            }
+            if (esDelimPunto) {
+                esAcronimoToken = (primerDelim < txt.size() && txt[primerDelim] == '.');
+            }
+
             size_t primerDelimACRON = lastPos;
-            while (primerDelimACRON < txt.size()
-                && !tablaDelimACRON[(unsigned char)txt[primerDelimACRON]]
-                && txt[primerDelimACRON] != ' '  && txt[primerDelimACRON] != '\t'
-                && txt[primerDelimACRON] != '\n' && txt[primerDelimACRON] != '\r') ++primerDelimACRON;
+            if(esDelimPunto && esAcronimoToken){
+                while (primerDelimACRON < txt.size()
+                    && !tablaDelimACRON[(unsigned char)txt[primerDelimACRON]]
+                    && txt[primerDelimACRON] != ' '  && txt[primerDelimACRON] != '\t'
+                    && txt[primerDelimACRON] != '\n' && txt[primerDelimACRON] != '\r') ++primerDelimACRON;
+            }
 
             size_t primerDelimGUION = lastPos;
-            while (primerDelimGUION < txt.size()
-                && !tablaDelimGUION[(unsigned char)txt[primerDelimGUION]]
-                && txt[primerDelimGUION] != ' '  && txt[primerDelimGUION] != '\t'
-                && txt[primerDelimGUION] != '\n' && txt[primerDelimGUION] != '\r') ++primerDelimGUION;
+            if(esDelimGuion && esGuionToken){
+                while (primerDelimGUION < txt.size()
+                    && !tablaDelimGUION[(unsigned char)txt[primerDelimGUION]]
+                    && txt[primerDelimGUION] != ' '  && txt[primerDelimGUION] != '\t'
+                    && txt[primerDelimGUION] != '\n' && txt[primerDelimGUION] != '\r') ++primerDelimGUION;
+            }
 
 
             //URLs
-            if (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0) 
+            if ((txt[lastPos] == 'h' || txt[lastPos] == 'f') && (txt.compare(lastPos, 4, "ftp:") == 0 || txt.compare(lastPos, 5, "http:") == 0 || txt.compare(lastPos, 6, "https:") == 0)) 
             {
                 string::size_type fin = lastPos;
                 while (fin < txt.size() && !tablaDelimURL[(unsigned char)txt[fin]]) ++fin;
@@ -251,7 +269,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     continue; 
                 }
             }//EMAILS
-            else if(esDelimArroba && posArroba <= primerDelim  &&  posArroba != lastPos && posArroba != string::npos)
+            else if(esDelimArroba && esEmailToken)
             {
 
                 string::size_type i = posArroba + 1;
@@ -325,7 +343,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                 }
                 esNumeroToken = true;
             }//ACRÓNIMOS
-            else if(esDelimPunto && txt.find('.', lastPos) < primerDelimACRON)
+            else if(esDelimPunto && esAcronimoToken)
             {
                 string::size_type i = lastPos;
 
@@ -361,9 +379,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const {
                     }
                     esNumeroToken = true;
             }//GUIONES
-            else if (esDelimGuion &&
-                posGuion < primerDelimGUION  &&
-                posGuion != lastPos && posGuion != string::npos)
+            else if (esGuionToken && esDelimGuion)
             {
                 string::size_type i = lastPos;
 
